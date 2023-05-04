@@ -1,2 +1,0 @@
-C:\MinGW\bin\ar.exe qc libNeuralNetworking.a CMakeFiles/NeuralNetworking.dir/source/DeepLearning.cpp.obj CMakeFiles/NeuralNetworking.dir/source/DLDomain.cpp.obj CMakeFiles/NeuralNetworking.dir/source/NeuralNetwork.cpp.obj CMakeFiles/NeuralNetworking.dir/source/pch.cpp.obj
-C:\MinGW\bin\ranlib.exe libNeuralNetworking.a

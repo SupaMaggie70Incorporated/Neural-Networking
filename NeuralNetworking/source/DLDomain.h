@@ -23,7 +23,6 @@ namespace SupaDL {
 
 
 		// Unused, and not implemented as of yet
-
 		int NetworkCount;
 		int MaxNetworks;
 		NeuralNetwork* Networks;

@@ -8,8 +8,27 @@
 using namespace SupaDL;
 using namespace std;
 
+
+void OptimizedNetwork::CopyTo(OptimizedNetwork* network) {
+	memcpy(network->NeuronBuffer, NeuronBuffer, Domain->InputCount * Domain->OutputCount * sizeof(DataType));
+}
+void OptimizedNetwork::Optimize(NeuralNetwork* network) {
+	for(int i = 0;i < Domain->InputCount;i++) {
+		
+	}
+}
+void OptimizedNetwork::Initialize(DLDomain* Domain) {
+	this->Domain = Domain;
+	this->NeuronBuffer = malloc(Domain->InputCount * Domain->OutputCount * sizeof(DataType));
+}
+OptimizedNetwork::~OptimizedNetwork() {
+	if(NeuronBuffer != NULL) free(NeuronBuffer);
+	NeuronBuffer = NULL;
+}
+
 NeuralNetwork::~NeuralNetwork() {
 	if(NeuronBuffer != NULL) free(NeuronBuffer);
+	NeuronBuffer = NULL;
 }
 
 void NeuralNetwork::Initialize(DLDomain* Domain) {

@@ -7,6 +7,7 @@
 
 namespace SupaDL {
 	class DLDomain;
+
 	struct NeuralNetwork
 	{
 	public:
@@ -25,6 +26,15 @@ namespace SupaDL {
 
 		void Initialize(DLDomain* Domain);
 		~NeuralNetwork();
+	};
+	struct OptimizedNetwork {
+	public:
+		DLDomain* Domain;
+		void* NeuronBuffer;
+		void Optimize(NeuralNetwork* network);
+		void CopyTo(OptimizedNetwork* network);
+		void Initialize(DLDomain domain);
+		~OptimizedNetwork();
 	};
 }
 

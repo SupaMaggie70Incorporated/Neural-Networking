@@ -7,16 +7,24 @@
 
 using namespace SupaDL;
 
+class SearchTree;
+
+struct EvalSet {
+	DataType StaticEval;
+	DataType SearchImportance;
+};
+
 struct TreeBranch {
 public:
-	Point Move;
 	DataType BestEval;
-	DataType StaticEval;
-	int BestMove;
-	TreeBranch* FollowingMoves[60]; // The middle 4 squares can never be moved to
-	int TimesEvaluated;
+	EvalSet StaticEvaluation;
+	Point BestMove;
+	TreeBranch* FollowingMoves[8][8];
+	TreeBranch* StalledMove;
 
-	void Evaluate(int evaluations);
+	int Evaluate(SearchTree* tree, int maxEvaluations);
+	void StaticEvaluate(SearchTree* tree);
+	int EvaluateDirectChildren(SearchTree* tree, int maxEvaluations);
 };
 
 class SearchTree {
@@ -25,9 +33,14 @@ public:
 	int MaxBranches;
 	int CurrentBranchIndex;
 
-	char StartPosition[64];
+	BoardPosition* Board;
 
-	SearchTree(int HashSize, char* startPosition);
+
+	void Evaluate(int times);
+	void Clear();
+	inline TreeBranch* ReserveBranch();
+
+	SearchTree(int HashSize, BoardPosition* board);
 	~SearchTree();
 };
 

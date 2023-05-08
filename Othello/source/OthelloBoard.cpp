@@ -4,10 +4,34 @@
 #include <stdlib.h>
 
 
-OthelloBoard::~OthelloBoard() {
 
+inline bool SameSign(signed char c1, signed char c2) {
+	return (c1 == c2) || (c1 > 0 && c2 > 0) || (c1 < 0 && c2 < 0);
 }
-OthelloBoard::OthelloBoard() {
+enum GameState BoardPosition::GetWinner() {
+	if(GameEnded) return Undetermined;
+	int balance = 0;
+	for(int i = 0;i < 64;i++) {
+		signed char val = ((signed char*)State)[i];
+		if(val > 0) balance++;
+		else if(val < 0) balance--;
+	}
+	if(balance == 0) return Draw;
+	else if(balance > 0) return Player1;
+	else if(balance < 0) return Player2;
+}
+void BoardPosition::Initialize() {
+	memset(State, NOPIECE, sizeof(State));
+	memset(History, 0, sizeof(History));
+	State[3][3] = 127;
+	State[4][4] = 127;
+	State[4][3] = -127;
+	State[3][4] = -127;
+	MoveNumber = 0;
+	GameEnded = false;
+	LastMoveStalled = false;
+	HasValidMoves = Unchecked;
+
 	OutputBuffer[0] = '\n';
 	OutputBuffer[129] = 0;
 	for (int i = 1; i < sizeof(OutputBuffer) - 1; i += 2) {
@@ -18,207 +42,284 @@ OthelloBoard::OthelloBoard() {
 			OutputBuffer[i] = ' ';
 		}
 	}
-	for (int x = 0; x < 8; x++) {
-		for (int y = 0; y < 8; y++) {
-			BoardState[x][y] = NOPIECE;
+}
+bool BoardPosition::CheckForValidMoves() {
+	if(HasValidMoves == ValidMoves) return true;
+	if(HasValidMoves == NoMoves) return false;
+	for(int x = 0;x < 8;x++) {
+		for(int y = 0;y < 8;y++) {
+			Point square = {x, y};
+			if(IsMoveValid(square)) {
+				HasValidMoves = ValidMoves;
+				return true;
+			}
 		}
 	}
-	BoardState[3][3] = PLAYER1;
-	BoardState[4][4] = PLAYER1;
-	BoardState[4][3] = PLAYER2;
-	BoardState[3][4] = PLAYER2;
-	PlayerTurn = PLAYER1;
-	MoveNumber = 0;
+	HasValidMoves = NoMoves;
+	return false;
+}
+bool BoardPosition::IsMoveValid(Point spot) {
+	signed char player = (MoveNumber & 1) ? -1 : 1;
+	// Down left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y - i};
+		if(square.x < 0 || square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Down
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x, spot.y - i};
+		if(square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Down right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y - i};
+		if(square.x > 7 || square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y};
+		if(square.x > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Upper right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y + i};
+		if(square.x > 7 || square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Up
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x, spot.y + i};
+		if(square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Upper left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y + i};
+		if(square.x < 0 || square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	// Left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y};
+		if(square.x < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			if(i > 1) return true;
+			break;
+		}
+	}
+	return false;
+}
+bool BoardPosition::MakeMove(Point spot) {
+	if(spot.x < 0) {
+		if(LastMoveStalled) {
+			GameEnded = true;
+			LastMoveStalled = true;
+		}
+		else LastMoveStalled = true;
+		return true;
+	}
+	if(MoveNumber & 1) State[spot.x][spot.y] = -MoveNumber - 1;
+	else State[spot.x][spot.y] = MoveNumber + 1;
+	uint64_t hash = 1 << MoveNumber;
+	signed char player = (MoveNumber & 1) ? -1 : 1;
+
+	bool DoneAnything = false;
+	LastMoveStalled = false;
+
+
+	// Down left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y - i};
+		if(square.x < 0 || square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x - j, spot.y - j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Down
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x, spot.y - i};
+		if(square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x, spot.y - j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Down right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y - i};
+		if(square.x > 7 || square.y < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x + j, spot.y - j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y};
+		if(square.x > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x + j, spot.y};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Upper right
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x + i, spot.y + i};
+		if(square.x > 7 || square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x + j, spot.y + j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Up
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x, spot.y + i};
+		if(square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x, spot.y + j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Upper left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y + i};
+		if(square.x < 0 || square.y > 7) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x - j, spot.y + j};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	// Left
+	for(int i = 1;i < 8;i++) {
+		Point square = {spot.x - i, spot.y};
+		if(square.x < 0) break;
+		signed char squareState = State[square.x][square.y];
+		if(squareState == 0) break;
+		else if(SameSign(squareState, player)) {
+			for(int j = 1;j < i;j++) {
+				Point square2 = {spot.x - j, spot.y};
+				State[square2.x][square2.y] *= -1;
+				History[square2.x][square2.y] |= hash;
+			}
+			if(i > 1) DoneAnything = true;
+			break;
+		}
+	}
+	HasValidMoves = Unchecked;
+	return DoneAnything;
+}
+void BoardPosition::UndoMove() {
+	uint64_t hash = 1 << (MoveNumber - 1);
+	for(int i = 0;i < 64;i++) {
+		if(((char*)State)[i] == MoveNumber || ((char*)State)[i] == -MoveNumber) {
+			((char*)State)[i] = NOPIECE;
+		}
+		if(((uint64_t*)History)[i] & hash) {
+			((uint64_t*)History)[i] ^ hash;
+			((char*)State)[i] *= -1;
+		}
+	}
+	HasValidMoves = Unchecked;
+	MoveNumber--;
 }
 
-void OthelloBoard::PrintToConsole() {
+void BoardPosition::PrintToConsole() {
 	for (int row = 7; row >= 0; row--) {
 		for (int column = 0; column < 8; column++) {
-			OutputBuffer[GetOutputIndex(column, row)] = BoardstateToChar(BoardState[column][row]);
+			OutputBuffer[GetOutputIndex(column, row)] = BoardstateToChar(State[column][row]);
 		}
 	}
 	printf("%s", OutputBuffer);
 	printf("\n");
-}
-void OthelloBoard::Move(Point square) {
-	if (Winner != 0) return;
-	if(TryGetAfterMove(square)) memcpy(&BoardState, &TemporaryBoardState, sizeof(BoardState));
-	PlayerTurn = (PlayerTurn == PLAYER1) ? PLAYER2 : PLAYER1;
-	if (++MoveNumber == 60) {
-		Winner = GetWinner();
-	}
-}
-char OthelloBoard::GetWinner() {
-	int p1 = 0;
-	int p2 = 0;
-	for (int x = 0; x < 8; x++) {
-		for (int y = 0; y < 8; y++) {
-			char state = BoardState[x][y];
-			if (state == PLAYER1) p1++;
-			else if (state == PLAYER2) p2++;
-			else if (state == NOPIECE) return 0;
-		}
-	}
-	if (p1 > p2) return PLAYER1;
-	else if (p2 > p1) return PLAYER2;
-	else return DRAW;
-}
-bool OthelloBoard::TryGetAfterMove(Point square) {
-	memcpy(&TemporaryBoardState, &BoardState, sizeof(BoardState));
-	if (TemporaryBoardState[square.x][square.y] != NOPIECE) {
-		return false;
-	}
-	TemporaryBoardState[square.x][square.y] = PlayerTurn;
-	
-	char states = 127;
-	bool hasSucceeded = false;
-
-	for (int i = 1; i < 8; i++) {
-		// Bottom left
-		if ((states & 1) && square.x - i >= 0 && square.y - i >= 0) {
-			char x = square.x - i;
-			char y = square.y - i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 1; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x - j][square.y - j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 1; // Xor it out
-			}
-		}
-		// Bottom
-		if ((states & 2) && square.y - i >= 0) {
-			char x = square.x;
-			char y = square.y - i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 2; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x][square.y - j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 2; // Xor it out
-			}
-		}
-		// Bottom right
-		if ((states & 4) && square.x + i < 8 && square.y - i >= 0) {
-			char x = square.x + i;
-			char y = square.y - i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 4; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x + j][square.y - j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 4; // Xor it out
-			}
-		}
-		// Right
-		if ((states & 8) && square.x + i < 8) {
-			char x = square.x + i;
-			char y = square.y;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 8; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x + j][square.y] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 8; // Xor it out
-			}
-		}
-		// Top Right
-		if ((states & 16) && square.x + i < 8 && square.y + i < 8) {
-			char x = square.x + i;
-			char y = square.y + i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 16; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x + j][square.y + j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 16; // Xor it out
-			}
-		}
-		// Top
-		if ((states & 32) && square.y + i < 8) {
-			char x = square.x;
-			char y = square.y + i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 32; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x][square.y + j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 32; // Xor it out
-			}
-		}
-		// Top Left
-		if ((states & 64) && square.x - i >= 0 && square.y + i < 8) {
-			char x = square.x - i;
-			char y = square.y + i;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 64; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x - j][square.y + j] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 64; // Xor it out
-			}
-		}
-		// Left
-		if ((states & 128) && square.x - i >= 0) {
-			char x = square.x - i;
-			char y = square.y;
-			char state = TemporaryBoardState[x][y];
-			if (state == PlayerTurn) {
-				states ^= 128; // Xor it out
-				if (i != 1) {
-					hasSucceeded = true;
-					for (int j = 1; j < i; j++) {
-						TemporaryBoardState[square.x - j][square.y] = PlayerTurn;
-					}
-				}
-			}
-			else if (state == NOPIECE) {
-				states ^= 128; // Xor it out
-			}
-		}
-	}
-
-	return hasSucceeded;
 }

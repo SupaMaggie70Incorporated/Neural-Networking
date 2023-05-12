@@ -11,6 +11,34 @@
 #define PLAYER2 -1
 
 
+using namespace SupaDL;
+
+struct LongLongBitwise {
+	uint64_t i1;
+	uint64_t i2;
+
+	bool HasAtBit(unsigned char bit);
+	void XorAtBit(unsigned char bit);
+	void OrAtBit(unsigned char bit);
+	void Clear();
+};
+
+enum WinnerState : char {
+	Incomplete,
+	Player1Win,
+	Player2Win,
+	Player1ForceWin,
+	Player2ForceWin,
+	Draw,
+	ForceBad // For coding purposes, this means that this automatically loses to all other evaluations, for a temporary evaluation
+};
+
+struct StaticEvalSet {
+	public:
+	DataType Evaluation;
+	enum WinnerState WinnerState;
+};
+
 struct Point {
 	signed char x, y;
 };
@@ -20,33 +48,28 @@ enum MoveState : char {
 	NoMoves,
 	ValidMoves
 };
-enum GameState : char {
-	Undetermined,
-	Player1,
-	Player2,
-	Draw
-};
 
 
 struct BoardPosition {
 public:
 	char OutputBuffer[130];
 	signed char State[8][8];
-	uint64_t History[8][8];
+	LongLongBitwise History[8][8];
 	int MoveNumber;
 	bool GameEnded;
 	bool LastMoveStalled;
 	enum MoveState HasValidMoves;
 
 	void Initialize();
+	void InitializeOutputBuffer();
 
-
+	void CopyTo(BoardPosition* dest);
 	void PrintToConsole();
 	bool CheckForValidMoves();
 	bool IsMoveValid(Point spot);
 	bool MakeMove(Point spot);
 	void UndoMove();
-	enum GameState GetWinner();
+	StaticEvalSet GetWinner();
 
 	
 	inline int GetOutputIndex(int x, int y) {

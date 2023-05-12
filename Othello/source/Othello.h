@@ -7,6 +7,7 @@ using namespace SupaDL;
 
 int main();
 
+void TestOptimization();
 void TestVsDefault();
 void GenerateNetwork();
 void RunCommandlineGame();

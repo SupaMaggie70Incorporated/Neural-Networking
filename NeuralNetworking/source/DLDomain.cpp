@@ -39,6 +39,9 @@ DLDomain::DLDomain(int layers, int neuronsperlayer, int max_networks, int inputc
 	this->ExecutionBuffer = MakeExecutionBuffer();
 	this->MutationAmount = mutationAmount;
 	this->MutationCount = mutationCount;
+
+	OptimizationInputBuffer = (DataType*)malloc(InputCount * sizeof(DataType));
+	OptimizationOutputBuffer = (DataType*)malloc(OutputCount * sizeof(DataType));
 }
 inline DataType* DLDomain::MakeExecutionBuffer() {
 	return (DataType*)malloc(ExecutionBufferSize);

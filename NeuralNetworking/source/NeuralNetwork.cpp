@@ -3,7 +3,7 @@
 #include "DLDomain.h"
 #include <stdlib.h>
 #include <string.h>
-
+#include <stdio.h>
 
 using namespace SupaDL;
 using namespace std;
@@ -13,13 +13,32 @@ void OptimizedNetwork::CopyTo(OptimizedNetwork* network) {
 	memcpy(network->NeuronBuffer, NeuronBuffer, Domain->InputCount * Domain->OutputCount * sizeof(DataType));
 }
 void OptimizedNetwork::Optimize(NeuralNetwork* network) {
+	
 	for(int i = 0;i < Domain->InputCount;i++) {
-		
+		Domain->OptimizationInputBuffer[i] = 0;
+	}
+	for(int i = 0;i < Domain->InputCount;i++) {
+		for(int j = 0;j < Domain->InputCount;j++) {
+			Domain->OptimizationInputBuffer[j] = 0;
+		}
+		Domain->OptimizationInputBuffer[i] = 1;
+		network->Execute(Domain->OptimizationInputBuffer, Domain->OptimizationOutputBuffer, Domain->ExecutionBuffer);
+		for(int j = 0;j < Domain->OutputCount;j++) {
+			NeuronBuffer[(i * Domain->OutputCount) + j] = Domain->OptimizationOutputBuffer[j];
+		}
+	}
+}
+void OptimizedNetwork::Execute(DataType* inputs, DataType* outputs) {
+	for(int output = 0;output < Domain->OutputCount;output++) {
+		outputs[output] = 0;
+		for(int input = 0;input < Domain->InputCount;input++) {
+			outputs[output] += inputs[input] * NeuronBuffer[(input * Domain->OutputCount) + output];
+		}
 	}
 }
 void OptimizedNetwork::Initialize(DLDomain* Domain) {
 	this->Domain = Domain;
-	this->NeuronBuffer = malloc(Domain->InputCount * Domain->OutputCount * sizeof(DataType));
+	this->NeuronBuffer = (DataType*)malloc(Domain->InputCount * Domain->OutputCount * sizeof(DataType));
 }
 OptimizedNetwork::~OptimizedNetwork() {
 	if(NeuronBuffer != NULL) free(NeuronBuffer);
@@ -64,6 +83,7 @@ void NeuralNetwork::Execute(DataType* inputs, DataType* outputs, DataType* execu
 		execbuf1[neuron] = 0;
 		for (int input = 0; input < Domain->InputCount; input++) {
 			execbuf1[neuron] += inputs[input] * buf[GetBufferIndex(0, neuron, input)];
+			//printf("%f * %f = %f\n", inputs[input], buf[GetBufferIndex(0, neuron, input)], inputs[input] * buf[GetBufferIndex(0, neuron, input)]);
 		}
 		//printf("Setting layer 0 neuron %d to %f\n", neuron, execbuf1[neuron]);
 	}

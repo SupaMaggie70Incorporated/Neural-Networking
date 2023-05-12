@@ -31,6 +31,9 @@ namespace SupaDL {
 		int ExecutionBufferSize;
 		int NetworkBufferSize;
 
+		DataType* OptimizationInputBuffer;
+		DataType* OptimizationOutputBuffer;
+
 		DataType MutationAmount;
 		int MutationCount;
 

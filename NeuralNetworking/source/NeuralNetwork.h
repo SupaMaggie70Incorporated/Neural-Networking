@@ -30,10 +30,11 @@ namespace SupaDL {
 	struct OptimizedNetwork {
 	public:
 		DLDomain* Domain;
-		void* NeuronBuffer;
+		DataType* NeuronBuffer;
 		void Optimize(NeuralNetwork* network);
 		void CopyTo(OptimizedNetwork* network);
-		void Initialize(DLDomain domain);
+		void Initialize(DLDomain* domain);
+		void Execute(DataType* inputs, DataType* outputs);
 		~OptimizedNetwork();
 	};
 }

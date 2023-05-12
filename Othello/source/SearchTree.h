@@ -9,22 +9,22 @@ using namespace SupaDL;
 
 class SearchTree;
 
-struct EvalSet {
-	DataType StaticEval;
-	DataType SearchImportance;
-};
+
+inline bool Compare(StaticEvalSet eval1, StaticEvalSet eval2, char turnNumber);
 
 struct TreeBranch {
 public:
-	DataType BestEval;
-	EvalSet StaticEvaluation;
+	StaticEvalSet BestEval;
+	StaticEvalSet StaticEval;
+	DataType SearchImportance;
 	Point BestMove;
-	TreeBranch* FollowingMoves[8][8];
-	TreeBranch* StalledMove;
+	int FollowingMoves[8][8];
+	int StalledMove;
+	bool EvaluatedAllFollowing;
 
-	int Evaluate(SearchTree* tree, int maxEvaluations);
-	void StaticEvaluate(SearchTree* tree);
-	int EvaluateDirectChildren(SearchTree* tree, int maxEvaluations);
+	int Evaluate(SearchTree* tree, int maxEvaluations, OptimizedNetwork* network);
+	void StaticEvaluate(SearchTree* tree, OptimizedNetwork* network);
+	int EvaluateDirectChildren(SearchTree* tree, int maxEvaluations, OptimizedNetwork* network);
 };
 
 class SearchTree {
@@ -32,13 +32,14 @@ public:
 	TreeBranch* Branches;
 	int MaxBranches;
 	int CurrentBranchIndex;
+	unsigned long TotalEvaluations;
 
 	BoardPosition* Board;
 
 
-	void Evaluate(int times);
+	void Evaluate(int times, OptimizedNetwork* network);
 	void Clear();
-	inline TreeBranch* ReserveBranch();
+	inline int ReserveBranch();
 
 	SearchTree(int HashSize, BoardPosition* board);
 	~SearchTree();

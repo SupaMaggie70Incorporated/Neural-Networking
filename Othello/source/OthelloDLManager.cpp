@@ -52,6 +52,11 @@ signed char OthelloDLManager::PlayTrainingPair(int evaluationsPerMove) {
 				break;
 			}
 			tempBoard.MakeMove(currentBestMove);
+			tempBoard.CheckForValidMoves();
+			if(tempBoard.GameEnded) {
+				shouldContinue = true;
+				break;
+			}
 		}
 	}
 	tempBoard.CopyTo(&Position);

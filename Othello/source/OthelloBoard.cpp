@@ -6,7 +6,8 @@
 
 
 void LongLongBitwise::Clear() {
-
+	i1 = 0;
+	i2 = 0;
 }
 
 void LongLongBitwise::XorAtBit(unsigned char bit) {
@@ -50,6 +51,7 @@ StaticEvalSet BoardPosition::GetWinner() {
 	else if(p2 == 0) return StaticEvalSet {0, Player1ForceWin};
 	else if(p1 > p2) return StaticEvalSet {(DataType)(p1 - p2), Player1Win};
 	else if(p1 < p2) return StaticEvalSet {(DataType)(p2 - p1), Player2Win};
+	return StaticEvalSet {0, ForceBad};
 }
 void BoardPosition::InitializeOutputBuffer() {
 	OutputBuffer[0] = '\n';
@@ -73,21 +75,23 @@ void BoardPosition::Initialize() {
 	MoveNumber = 0;
 	GameEnded = false;
 	LastMoveStalled = false;
-	HasValidMoves = Unchecked;	
+	HasValidMoves = Unchecked;
 }
 bool BoardPosition::CheckForValidMoves() {
 	if(HasValidMoves == ValidMoves) return true;
 	if(HasValidMoves == NoMoves) return false;
 	for(int x = 0;x < 8;x++) {
 		for(int y = 0;y < 8;y++) {
-			Point square = {x, y};
+			Point square = {(signed char)x, (signed char)y};
 			if(IsMoveValid(square)) {
 				HasValidMoves = ValidMoves;
+				GameEnded = false;
 				return true;
 			}
 		}
 	}
 	HasValidMoves = NoMoves;
+	if(LastMoveStalled) GameEnded = true;
 	return false;
 }
 bool BoardPosition::IsMoveValid(Point spot) {
@@ -184,6 +188,7 @@ bool BoardPosition::IsMoveValid(Point spot) {
 	return false;
 }
 bool BoardPosition::MakeMove(Point spot) {
+	if(GameEnded) return false;
 	if(spot.x == -1) {
 		MoveNumber++;
 		HasValidMoves = Unchecked;
@@ -355,6 +360,7 @@ void BoardPosition::UndoMove() {
 	}
 	HasValidMoves = Unchecked;
 	MoveNumber--;
+	GameEnded = false;
 }
 
 void BoardPosition::PrintToConsole() {

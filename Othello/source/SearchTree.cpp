@@ -48,6 +48,7 @@ inline bool Compare(StaticEvalSet eval1, StaticEvalSet eval2, char turn) {
 }
 
 int TreeBranch::Evaluate(SearchTree* tree, int maxEvaluations, OptimizedNetwork* network) {
+	//printf("Evaluating\n");
 	//printf("Evaluating the following position, move number %d\n", tree->Board->MoveNumber);
 	//tree->Board->PrintToConsole();
 	if(StaticEval.WinnerState != Incomplete) {
@@ -97,6 +98,7 @@ int TreeBranch::Evaluate(SearchTree* tree, int maxEvaluations, OptimizedNetwork*
 	return maxEvaluations - evalsLeft;
 }
 void TreeBranch::StaticEvaluate(SearchTree* tree, OptimizedNetwork* network) {
+	//printf("Static evaluating\n");
 	//printf("Statically evaluating the following position, move number %d\n", tree->Board->MoveNumber);
 	//tree->Board->PrintToConsole();
 	tree->TotalEvaluations++;
@@ -144,15 +146,16 @@ void TreeBranch::StaticEvaluate(SearchTree* tree, OptimizedNetwork* network) {
 	SearchImportance = Outputs[1];
 }
 int TreeBranch::EvaluateDirectChildren(SearchTree* tree, int maxEvaluations, OptimizedNetwork* network) {
+	//printf("Evaluating direct children\n");
 	//printf("Evaluating direct children of the following position, move %d\n", tree->Board->MoveNumber);
 	//tree->Board->PrintToConsole();
 	if(EvaluatedAllFollowing || maxEvaluations == 0 || StalledMove != -1) return 0;
 	int evaluationsUsed = 0;
-	BestEval.WinnerState = ForceBad;
+	bool validMoves = false;
 
 	for(signed char x = 0;x < 8;x++) {
 		for(signed char y = 0;y < 8;y++) {
-			if(tree->Board->MakeMove(Point {x, y})) {
+			if(FollowingMoves[x][y] == -1 && tree->Board->MakeMove(Point {x, y})) {
 				int branch = tree->ReserveBranch();
 				FollowingMoves[x][y] = branch;
 				evaluationsUsed++;
@@ -162,14 +165,13 @@ int TreeBranch::EvaluateDirectChildren(SearchTree* tree, int maxEvaluations, Opt
 					BestEval = tree->Branches[branch].StaticEval;
 				}
 				tree->Board->UndoMove();
+				validMoves = true;
 			}
-			else {
-				FollowingMoves[x][y] = -1;
-			}
+			else if(FollowingMoves[x][y] != -1) validMoves = true;
 			if(evaluationsUsed >= maxEvaluations) return evaluationsUsed;
 		}
 	}
-	if(evaluationsUsed == 0) {
+	if(!validMoves && StalledMove == -1) {
 		tree->Board->MakeMove(Point {-1, -1});
 		StalledMove = tree->ReserveBranch();
 		tree->Branches[StalledMove].StaticEvaluate(tree, network);
@@ -178,17 +180,17 @@ int TreeBranch::EvaluateDirectChildren(SearchTree* tree, int maxEvaluations, Opt
 		tree->Board->UndoMove();
 		evaluationsUsed++;
 	}
-	else {
-		StalledMove = -1;
-	}
 	EvaluatedAllFollowing = true;
 	return evaluationsUsed;
 }
 
 
 void SearchTree::Evaluate(int times, OptimizedNetwork* network) {
-	Branches[0].Evaluate(this, times, network);
-	//printf("Finished evaluating the tree for a move\n");
+	int used = Branches[0].EvaluateDirectChildren(this, times, network);
+	if(used == 1 || Branches[0].BestMove.x == -1) return;
+	WinnerState bestState = Branches[Branches[0].FollowingMoves[Branches[0].BestMove.x][Branches[0].BestMove.y]].StaticEval.WinnerState;
+	if(bestState == Player1Win || bestState == Player2Win || bestState == Player1ForceWin || bestState == Player2ForceWin) return;
+	Branches[0].Evaluate(this, times - used, network);
 }
 void SearchTree::Clear() {
 	CurrentBranchIndex = 1;
@@ -209,6 +211,7 @@ inline int SearchTree::ReserveBranch() {
 	for(int i = 0;i < 64;i++) {
 		((int*)Branches[CurrentBranchIndex].FollowingMoves)[i] = -1;
 	}
+	Branches[CurrentBranchIndex].BestEval.WinnerState = ForceBad;
 	Branches[CurrentBranchIndex].EvaluatedAllFollowing = false;
 	Branches[CurrentBranchIndex].StalledMove = -1;
 	Branches[CurrentBranchIndex].StaticEval.WinnerState = Incomplete;

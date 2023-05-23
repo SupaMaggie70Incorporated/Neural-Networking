@@ -12,11 +12,13 @@
 #include <fcntl.h>
 #include <limits>
 
+#include <windows.h>
+
 
 
 using namespace SupaDL;
 
-const char* FileName = "C:/Users/SupaM/Desktop/Othello_16x16_MCTS";
+const char* FileName = "C:/Users/SupaM/Desktop/Othello_8x8_MCTS";
 
 void LoadNetwork(DLDomain* Domain) {
     struct stat buffer;
@@ -31,15 +33,15 @@ void LoadNetwork(DLDomain* Domain) {
 }
 void SaveNetwork(DLDomain* Domain) {
     FILE* f = NULL;
-    //f = fopen(FileName, "w");
+    f = fopen(FileName, "w");
     fwrite(Domain->Networks[0].NeuronBuffer, Domain->NetworkBufferSize, 1, f);
     fclose(f);
-    printf("Saved network to file %s", FileName);
+    printf("Saved network to file %s\n", FileName);
 }
 int main() {
     printf("Hello, world!\n");
-    //TestOptimization();
-    //RunCommandlineGame();
+    fflush(stdout);
+    //TestVsDefault();
     GenerateNetwork();
     return 0;
 }
@@ -64,7 +66,37 @@ void TestOptimization() {
     printf("Output from network 1: (%lf, %lf), and from network 2: (%lf, %lf) with inputs %lf, %lf etc\n",domain->OptimizationOutputBuffer[0], domain->OptimizationOutputBuffer[1], outputs[0], outputs[1], domain->OptimizationInputBuffer[0], domain->OptimizationInputBuffer[1]);
 }
 void TestVsDefault() {
-   
+    const int EvaluationsPerMove = 16384;
+    SupaDL::Setup();
+    DLDomain* Domain = new DLDomain(8, 8, 2, 128, 2, 0.1, 16);
+    printf("Hello World!\n");
+    OthelloDLManager GameManager;
+    GameManager.InitSearchTree(EvaluationsPerMove + 5); // 5 is a random number I chose, 1 is probably good
+    DataType* ExecutionBuffer = Domain->ExecutionBuffer;
+    OptimizedNetwork original;
+    original.Initialize(Domain);
+    original.Optimize(&Domain->Networks[0]);
+    
+    LoadNetwork(Domain);
+
+    OptimizedNetwork current;
+    current.Initialize(Domain);
+    current.Optimize(&Domain->Networks[0]);
+    OthelloDLManager manager;
+    manager.InitSearchTree(EvaluationsPerMove + 5);
+    int score = 0;
+    int wins = 0;
+    int draws = 0;
+    int losses = 0;
+    for(int i = 0;i < 50;i++) {
+        manager.Initialize(Domain, &current, &original, ExecutionBuffer);
+        signed char value = manager.PlayTrainingPair(EvaluationsPerMove);
+        if(value < 0) losses++;
+        else if(value > 0) wins++;
+        else draws++;
+        score += value;
+    }
+    printf("Of 50 games, final score is %d, with +%d-%d=%d", score, wins, losses, draws);
 }
 void GenerateNetwork()
 {
@@ -81,6 +113,15 @@ void GenerateNetwork()
     unsigned long totalDecisiveGames = 0;
     unsigned long totalEvaluations = 0;
 
+    
+    NeuralNetwork Original;
+    Original.Initialize(Domain);
+    Domain->Networks[0].DuplicateTo(&Original);
+    OptimizedNetwork OptimizedOriginal;
+    OptimizedOriginal.Initialize(Domain);
+    OptimizedOriginal.Optimize(&Original);
+
+    LoadNetwork(Domain);
 
     OptimizedNetwork Optimized1;
     OptimizedNetwork Optimized2;
@@ -88,6 +129,8 @@ void GenerateNetwork()
     Optimized2.Initialize(Domain);
     Optimized1.Optimize(&Domain->Networks[0]);
     Optimized2.Optimize(&Domain->Networks[1]);
+
+    
 
     NeuralNetwork HistoricalNetwork;
     OptimizedNetwork OptimizedHistorial;
@@ -124,19 +167,35 @@ void GenerateNetwork()
                 Domain->Networks[1].Mutate();
                 Optimized2.Optimize(&Domain->Networks[1]);
             }
-            //printf("Game %d played with winner %d in %d milliseconds, %d decisive games played so far\n", totalRuns++, result, (int)(now - last_time), decisiveGames);
         }
+        printf("\n");
         totalGames += 1000;
         totalDecisiveGames += decisiveGames;
         totalEvaluations += GameManager.Tree->TotalEvaluations;
         int score = 0;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             GameManager.Initialize(Domain, &Optimized1, &OptimizedHistorial, ExecutionBuffer);
             score += GameManager.PlayTrainingPair(EvaluationsPerMove);
         }
+        int scoreVsDumb = 0;
+        for(int i = 0;i < 10;i++) {
+            GameManager.Initialize(Domain, &Optimized1, &OptimizedOriginal, ExecutionBuffer);
+            scoreVsDumb += GameManager.PlayTrainingPair(EvaluationsPerMove);
+        }
+        // Ties are not worth saving
+        if(score > 0 && scoreVsDumb > 0) {
+            SaveNetwork(Domain);
+        }
+        else {
+            HistoricalNetwork.DuplicateTo(&Domain->Networks[0]);
+            Domain->Networks[0].MutateTo(&Domain->Networks[1]);
+            OptimizedHistorial.CopyTo(&Optimized1);
+            Optimized2.Optimize(&Domain->Networks[1]);
+        }
         time_t now = time(0);
-        SaveNetwork(Domain);
-        printf("\nGeneration %d beat generation %d by %d points after playing 1000 games, %d of which were decisive, and performing %lu evaluations in %d seconds. This has been training for %d seconds total and had %lu games, %lu of which were decisive, and %lu evaluations.\n",generation + 1, generation, score, decisiveGames, GameManager.Tree->TotalEvaluations, (int)difftime(now, start), (int)difftime(now, actualStart), totalGames, totalDecisiveGames, totalEvaluations);
+        int secondsSince = (int)difftime(now, start);
+        int secondsSinceStart = (int)difftime(now, actualStart);
+        printf("Generation %d beat generation %d by %d, and generation 0 by %d points after playing 1000 games, average %d per second, %d of which were decisive, and performing %lu evaluations in %d seconds, average of %d per second. This has been training for %d seconds total and had %lu games, average %d per second, %lu of which were decisive, and %lu evaluations, or on average %d per second\n",generation + 1, generation, score, scoreVsDumb, 1000 / secondsSince, decisiveGames, GameManager.Tree->TotalEvaluations, secondsSince, (int)(GameManager.Tree->TotalEvaluations / secondsSince), secondsSinceStart, totalGames, totalGames / secondsSinceStart, totalDecisiveGames, totalEvaluations, (int)(totalEvaluations / secondsSinceStart));
         start = now;
     }
     exit(0);

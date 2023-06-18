@@ -1,4 +1,4 @@
-project(Othello VERSION 1.0 DESCRIPTION "This is the description")
+project(Othello DESCRIPTION "This is the description")
 
 include(GNUInstallDirs)
 include(CTest)

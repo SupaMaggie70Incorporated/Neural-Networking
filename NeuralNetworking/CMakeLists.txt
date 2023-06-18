@@ -1,4 +1,4 @@
-project(NeuralNetworking VERSION 1.0 DESCRIPTION "This is the description")
+project(NeuralNetworking DESCRIPTION "This is the description")
 
 set(CMAKE_BUILD_TYPE "Debug")
 include(GNUInstallDirs)

@@ -1,0 +1,2 @@
+add_subdirectory(NeuralNetworking)
+add_subdirectory(Othello)

@@ -19,7 +19,8 @@ struct LongLongBitwise {
 
 	bool HasAtBit(unsigned char bit);
 	void XorAtBit(unsigned char bit);
-	void OrAtBit(unsigned char bit);
+	void SetAtBit(unsigned char bit);
+	void UnsetAtBit(unsigned char bit);
 	void Clear();
 };
 
@@ -43,29 +44,24 @@ struct Point {
 	signed char x, y;
 };
 
-enum MoveState : char {
-	Unchecked,
-	NoMoves,
-	ValidMoves
-};
-
 
 struct BoardPosition {
 public:
 	char OutputBuffer[130];
 	signed char State[8][8];
 	LongLongBitwise History[8][8];
+	LongLongBitwise SkipHistory;
 	int MoveNumber;
 	bool GameEnded;
 	bool LastMoveStalled;
-	enum MoveState HasValidMoves;
 
 	void Initialize();
 	void InitializeOutputBuffer();
 
 	void CopyTo(BoardPosition* dest);
 	void PrintToConsole();
-	bool CheckForValidMoves();
+	void CheckForValidMoves();
+	bool HasValidMoves();
 	bool IsMoveValid(Point spot);
 	bool MakeMove(Point spot);
 	void UndoMove();

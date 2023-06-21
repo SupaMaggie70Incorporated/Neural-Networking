@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <limits.h>
 
 
 
@@ -18,9 +19,13 @@ bool LongLongBitwise::HasAtBit(unsigned char bit) {
 	if(bit > 64) return i2 & (1 << (bit - 64));
 	else return i1 & (1 << bit);
 }
-void LongLongBitwise::OrAtBit(unsigned char bit) {
+void LongLongBitwise::SetAtBit(unsigned char bit) {
 	if(bit > 64) i2 |= 1 << (bit - 64);
 	else i1 |= 1 << bit;
+}
+void LongLongBitwise::UnsetAtBit(unsigned char bit) {
+	if(bit > 64) i2 &= (ULLONG_MAX - 1 << (bit - 64));
+	else i1 &= (ULLONG_MAX - 1 << bit);
 }
 
 inline bool SameSign(signed char c1, signed char c2) {
@@ -35,7 +40,6 @@ void BoardPosition::CopyTo(BoardPosition* dest) {
 	dest->MoveNumber = MoveNumber;
 	dest->GameEnded = GameEnded;
 	dest->LastMoveStalled = LastMoveStalled;
-	dest->HasValidMoves = HasValidMoves;
 }
 StaticEvalSet BoardPosition::GetWinner() { 
 	if(!GameEnded) return StaticEvalSet {0, Incomplete};
@@ -75,24 +79,23 @@ void BoardPosition::Initialize() {
 	MoveNumber = 0;
 	GameEnded = false;
 	LastMoveStalled = false;
-	HasValidMoves = Unchecked;
 }
-bool BoardPosition::CheckForValidMoves() {
-	if(HasValidMoves == ValidMoves) return true;
-	if(HasValidMoves == NoMoves) return false;
+bool BoardPosition::HasValidMoves() {
+	return !SkipHistory.HasAtBit(MoveNumber);
+}
+
+void BoardPosition::CheckForValidMoves() {
 	for(int x = 0;x < 8;x++) {
 		for(int y = 0;y < 8;y++) {
-			Point square = {(signed char)x, (signed char)y};
-			if(IsMoveValid(square)) {
-				HasValidMoves = ValidMoves;
+			if(IsMoveValid(Point {(signed char)x, (signed char)y})) {
+				SkipHistory.UnsetAtBit(MoveNumber);
 				GameEnded = false;
-				return true;
+				return;
 			}
 		}
 	}
-	HasValidMoves = NoMoves;
+	SkipHistory.SetAtBit(MoveNumber);
 	if(LastMoveStalled) GameEnded = true;
-	return false;
 }
 bool BoardPosition::IsMoveValid(Point spot) {
 	signed char player = (MoveNumber & 1) ? -1 : 1;
@@ -191,13 +194,13 @@ bool BoardPosition::MakeMove(Point spot) {
 	if(GameEnded) return false;
 	if(spot.x == -1) {
 		MoveNumber++;
-		HasValidMoves = Unchecked;
 		if(LastMoveStalled) {
 			GameEnded = true;
 			LastMoveStalled = true;
 		}
 		else {
 			LastMoveStalled = true;
+			CheckForValidMoves();
 		}
 		return true;
 	}
@@ -219,7 +222,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x - j, spot.y - j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -235,7 +238,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x, spot.y - j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -251,7 +254,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x + j, spot.y - j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -267,7 +270,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x + j, spot.y};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -283,7 +286,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x + j, spot.y + j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -299,7 +302,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x, spot.y + j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -315,7 +318,7 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x - j, spot.y + j};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
@@ -331,15 +334,15 @@ bool BoardPosition::MakeMove(Point spot) {
 			for(int j = 1;j < i;j++) {
 				Point square2 = {spot.x - j, spot.y};
 				State[square2.x][square2.y] *= -1;
-				History[square2.x][square2.y].OrAtBit(MoveNumber);
+				History[square2.x][square2.y].SetAtBit(MoveNumber);
 			}
 			if(i > 1) DoneAnything = true;
 			break;
 		}
 	}
 	if(DoneAnything) {
-		HasValidMoves = Unchecked;
 		MoveNumber++;
+		CheckForValidMoves();
 		LastMoveStalled = false;
 		return true;
 	}
@@ -358,7 +361,7 @@ void BoardPosition::UndoMove() {
 			((char*)State)[i] *= -1;
 		}
 	}
-	HasValidMoves = Unchecked;
+	SkipHistory.UnsetAtBit(MoveNumber - 1);
 	MoveNumber--;
 	GameEnded = false;
 }

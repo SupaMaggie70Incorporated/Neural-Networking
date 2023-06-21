@@ -12,8 +12,6 @@
 #include <fcntl.h>
 #include <limits>
 
-#include <windows.h>
-
 
 
 using namespace SupaDL;
@@ -41,8 +39,8 @@ void SaveNetwork(DLDomain* Domain) {
 int main() {
     printf("Hello, world!\n");
     fflush(stdout);
-    //TestVsDefault();
     GenerateNetwork();
+    //RunCommandlineGame();
     return 0;
 }
 void TestOptimization() {
@@ -206,7 +204,7 @@ void RunCommandlineGame() {
     board.Initialize();
     board.PrintToConsole();
     while (!board.GameEnded) {
-        if(!board.CheckForValidMoves()) {
+        if(!board.HasValidMoves()) {
             printf("Skipping turn because no valid moves\n");
             board.MakeMove(Point {-1, -1});
             continue;
@@ -216,6 +214,12 @@ void RunCommandlineGame() {
         scanf(" %s", str, 3);
         if(str[1] == '0') {
             board.UndoMove();
+            board.PrintToConsole();
+            continue;
+        }
+        else if(str[0] == '-') {
+            printf("Skipping turn because no valid moves\n");
+            board.MakeMove(Point {-1, -1});
             board.PrintToConsole();
             continue;
         }
@@ -232,5 +236,4 @@ void RunCommandlineGame() {
             board.UndoMove();
         }
     }
-    printf("\nEnd result:\n", board.GetWinner());
 }

@@ -53,7 +53,6 @@ public:
 	LongLongBitwise SkipHistory;
 	int MoveNumber;
 	bool GameEnded;
-	bool LastMoveStalled;
 
 	void Initialize();
 	void InitializeOutputBuffer();
@@ -62,6 +61,7 @@ public:
 	void PrintToConsole();
 	void CheckForValidMoves();
 	bool HasValidMoves();
+	bool LastMoveStalled();
 	bool IsMoveValid(Point spot);
 	bool MakeMove(Point spot);
 	void UndoMove();

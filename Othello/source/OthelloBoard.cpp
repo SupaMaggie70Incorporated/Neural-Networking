@@ -39,7 +39,6 @@ void BoardPosition::CopyTo(BoardPosition* dest) {
 	memcpy(dest->History, History, sizeof(History));
 	dest->MoveNumber = MoveNumber;
 	dest->GameEnded = GameEnded;
-	dest->LastMoveStalled = LastMoveStalled;
 }
 StaticEvalSet BoardPosition::GetWinner() { 
 	if(!GameEnded) return StaticEvalSet {0, Incomplete};
@@ -79,10 +78,12 @@ void BoardPosition::Initialize() {
 	State[3][4] = -127;
 	MoveNumber = 0;
 	GameEnded = false;
-	LastMoveStalled = false;
 }
 bool BoardPosition::HasValidMoves() {
 	return !SkipHistory.HasAtBit(MoveNumber);
+}
+bool BoardPosition::LastMoveStalled() {
+	return !SkipHistory.HasAtBit(MoveNumber - 1);
 }
 
 void BoardPosition::CheckForValidMoves() {
@@ -96,14 +97,16 @@ void BoardPosition::CheckForValidMoves() {
 		}
 	}
 	SkipHistory.SetAtBit(MoveNumber);
-	if(LastMoveStalled) GameEnded = true;
 }
 bool BoardPosition::IsMoveValid(Point spot) {
 	signed char player = (MoveNumber & 1) ? -1 : 1;
 
-	if(spot.x == -1) return !HasValidMoves() || GameEnded;
+	if(spot.x == -1) {
+		//return !HasValidMoves() || GameEnded;
+		return true;
+	}
 	// Down left
-	if(spot.x != -1 && State[spot.x][spot.y] != NOPIECE) return false;
+	if(State[spot.x][spot.y] != 0) return false;
 	for(int i = 1;i < 8;i++) {
 		Point square = {spot.x - i, spot.y - i};
 		if(square.x < 0 || square.y < 0) break;
@@ -197,19 +200,14 @@ bool BoardPosition::MakeMove(Point spot) {
 	if(GameEnded) return false;
 	if(spot.x == -1) {
 		MoveNumber++;
-		if(LastMoveStalled) {
+		CheckForValidMoves();
+		if(!HasValidMoves()) {
 			GameEnded = true;
-			LastMoveStalled = true;
-		}
-		else {
-			LastMoveStalled = true;
-			CheckForValidMoves();
 		}
 		return true;
 	}
 	if(State[spot.x][spot.y] != 0) return false;
-	if(MoveNumber & 1) State[spot.x][spot.y] = -MoveNumber - 1;
-	else State[spot.x][spot.y] = MoveNumber + 1;
+	State[spot.x][spot.y] = (MoveNumber & 1) ? (-MoveNumber - 1) : (MoveNumber + 1);
 	signed char player = (MoveNumber & 1) ? -1 : 1;
 
 	bool DoneAnything = false;
@@ -346,7 +344,6 @@ bool BoardPosition::MakeMove(Point spot) {
 	if(DoneAnything) {
 		MoveNumber++;
 		CheckForValidMoves();
-		LastMoveStalled = false;
 		return true;
 	}
 	else {

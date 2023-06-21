@@ -96,7 +96,9 @@ void OthelloDLManager::PlayMove(int evaluations) {
 	if(!Position.IsMoveValid(bestMove)) {
 		Position.InitializeOutputBuffer();
 		Position.PrintToConsole();
-		printf("Invalid move recommended: %d, %d\n", (int)bestMove.x, (int)bestMove.y);
+		printf("Invalid move recommended: %d, %d, %s\n", (int)bestMove.x, (int)bestMove.y, Position.HasValidMoves() ? "valid moves" : "no valid moves");
+		bool worked = Position.MakeMove(bestMove);
+		printf("Move was valid: %d", (int)worked);
 		exit(EXIT_FAILURE);
 	}
 	Position.MakeMove(bestMove);

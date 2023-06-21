@@ -218,8 +218,8 @@ void RunCommandlineGame() {
             continue;
         }
         else if(str[0] == '-') {
-            printf("Skipping turn because no valid moves\n");
-            board.MakeMove(Point {-1, -1});
+            bool moveSuccessful = board.MakeMove(Point {-1, -1});
+            printf("Skipping turn because no valid moves, move successful = %d, game ended = %d\n", (int)moveSuccessful, (int)board.GameEnded);
             board.PrintToConsole();
             continue;
         }

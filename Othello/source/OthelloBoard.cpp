@@ -72,6 +72,7 @@ void BoardPosition::InitializeOutputBuffer() {
 void BoardPosition::Initialize() {
 	memset(State, NOPIECE, sizeof(State));
 	memset(History, 0, sizeof(History));
+	memset(&SkipHistory, 0, sizeof(SkipHistory));
 	State[3][3] = 127;
 	State[4][4] = 127;
 	State[4][3] = -127;
@@ -99,6 +100,8 @@ void BoardPosition::CheckForValidMoves() {
 }
 bool BoardPosition::IsMoveValid(Point spot) {
 	signed char player = (MoveNumber & 1) ? -1 : 1;
+
+	if(spot.x == -1) return !HasValidMoves() || GameEnded;
 	// Down left
 	if(spot.x != -1 && State[spot.x][spot.y] != NOPIECE) return false;
 	for(int i = 1;i < 8;i++) {

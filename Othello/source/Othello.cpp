@@ -144,9 +144,9 @@ void GenerateNetwork()
         int decisiveGames = 0;
         GameManager.Tree->TotalEvaluations = 0;
         
-        printf("%lu games played in this generation", 0);
         for (int i = 0; i < 1000;i++) {
             printf("\r%d games played in this generation", i);
+            fflush(stdout);
             GameManager.Initialize(Domain, &Optimized1, &Optimized2, ExecutionBuffer);
             signed char result = GameManager.PlayTrainingPair(EvaluationsPerMove);
             if (result > 0) {

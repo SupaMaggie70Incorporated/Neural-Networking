@@ -93,6 +93,12 @@ void OthelloDLManager::PlayMove(int evaluations) {
 	Tree->Clear();
 	Tree->Evaluate(evaluations, (Position.MoveNumber & 1) ? Network2 : Network1);
 	Point bestMove = Tree->Branches[0].BestMove;
+	if(!Position.IsMoveValid(bestMove)) {
+		Position.InitializeOutputBuffer();
+		Position.PrintToConsole();
+		printf("Invalid move recommended: %d, %d\n", (int)bestMove.x, (int)bestMove.y);
+		exit(EXIT_FAILURE);
+	}
 	Position.MakeMove(bestMove);
 	//printf("Played a move, (%d, %d), move #%d\n", (int)bestMove.x, (int)bestMove.y, Position.MoveNumber);
 	//Tree->Board->PrintToConsole();
